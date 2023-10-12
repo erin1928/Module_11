@@ -302,3 +302,41 @@ manipulate(power.plot(sigma, muA, mu0, n, alpha, alternative), sigma = slider(1,
         initial = 16), alpha = slider(0.01, 0.1, step = 0.01, initial = 0.05),
     alternative = picker("two.tailed", "greater", "less"))
 ```
+```{r 7, include=TRUE}
+library(ggplot2)
+library(manipulate)
+power.test <- function(mu0, muA, sigma, alpha = 0.05, type, alternative) {
+    p <- 0
+    for (i in 2:200) {
+        x <- power.t.test(n = i, delta = abs(muA - mu0), sd = sigma, sig.level = alpha,
+            power = NULL, type = type, alternative = alternative)
+        p <- c(p, x$power)
+    }
+    d <- data.frame(cbind(1:200, p, 1 - p))
+    critn <- 0
+    for (i in 1:199) {
+        if (p[i] < 0.8 && p[i + 1] >= 0.8) {
+            critn <- i + 1
+        } else {
+            critn <- critn
+        }
+    }
+    names(d) <- c("n", "power", "beta")
+    g <- ggplot(data = d) + xlab("sample size n") + ylab("Type II Error Rate, Beta  (Red)\nand\nPower, 1-Beta (Blue)") +
+        ggtitle("Power for T Tests\n(assuming equal n and variance across the two groups)") +
+        ylim(0, 1) + geom_point(aes(x = n, y = power), colour = "blue", alpha = 1/2) +
+        geom_line(aes(x = n, y = power), colour = "blue", alpha = 1/2) + geom_line(aes(x = n,
+        y = 0.8), colour = "red", lty = 3) + geom_point(aes(x = n, y = beta),
+        colour = "red", alpha = 1/2) + geom_line(aes(x = n, y = beta), colour = "red",
+        alpha = 1/2) + geom_linerange(aes(x = critn, ymin = 0, ymax = 0.8),
+        colour = "blue", alpha = 1/4) + annotate("text", x = 150, y = 0.5, label = paste("Effect Size = ",
+        round(abs(mu0 - muA)/sigma, digits = 3), "\nCritical n = ", critn, sep = ""))
+    print(g)
+}
+manipulate(plot(1:5, cex = size), size = slider(0.5, 10, step = 0.5))  #run this to get it going
+manipulate(power.test(mu0, muA, sigma, alpha, type, alternative), mu0 = slider(-10,
+    10, initial = 3, step = 1), muA = slider(-10, 10, initial = 0, step = 1),
+    sigma = slider(1, 10, initial = 3, step = 1), alpha = slider(0.01, 0.1,
+        initial = 0.05, step = 0.01), alternative = picker("two.sided", "one.sided"),
+    type = picker("two.sample", "one.sample", "paired"))
+```
