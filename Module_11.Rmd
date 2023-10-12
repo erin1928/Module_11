@@ -1,0 +1,114 @@
+---
+title: "Module_11"
+author: "Erin Anderson"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+typeI <- function(mu0, sigma, n, alternative = "two.tailed", alpha = 0.05, k = 10000) {
+}
+typeI <- function(mu0, sigma, n, alternative = "two.tailed", alpha = 0.05, k = 1000) {
+    p <- rep(NA, k)  # sets up a vector of empty p values
+    for (i in 1:k) {
+        # sets up a loop to run k simulations
+        x <- rnorm(n = n, mean = mu0, sd = sigma)  # draws a sample from our distribution
+        m <- mean(x)  # calculates the mean
+        s <- sd(x)  # calculates the standard deviation
+        z <- (m - mu0)/(s/sqrt(n))  # calculates the T statistic for the sample drawn from the null distribution relative to the null distribution
+        # alternatively use t <- (m-mu0)/(s/sqrt(n))
+        if (alternative == "less") {
+            p[i] <- pnorm(z, lower.tail = TRUE)  # calculates the associated p value
+            # alternatively, use p[i] <- pt(t,df=n-1,lower.tail=TRUE)
+        }
+        if (alternative == "greater") {
+            p[i] <- pnorm(z, lower.tail = FALSE)  # calculates the associated p value
+            # alternatively, use p[i] <- pt(t,df=n-1,lower.tail=FALSE)
+        }
+        if (alternative == "two.tailed") {
+            if (z > 0)
+                {
+                  p[i] <- 2 * pnorm(z, lower.tail = FALSE)
+                }  # alternatively, use if (t > 0) {p[i] <- pt(t,df=n-1,lower.tail=FALSE)}
+            if (z < 0)
+                {
+                  p[i] <- 2 * pnorm(z, lower.tail = TRUE)
+                }  # alternatively, use if (t < 0) {p[i] <- pt(t,df=n-1,lower.tail=TRUE)}
+        }
+    }
+
+    curve(dnorm(x, mu0, sigma/sqrt(n)), mu0 - 4 * sigma/sqrt(n), mu0 + 4 * sigma/sqrt(n),
+        main = paste("Sampling Distribution Under the Null Hypothesis\nType I error rate from simulation = ",
+            length(p[p < alpha])/k, sep = ""), xlab = "x", ylab = "Pr(x)", col = "red",
+        xlim = c(mu0 - 4 * sigma/sqrt(n), mu0 + 4 * sigma/sqrt(n)), ylim = c(0,
+            dnorm(mu0, mu0, sigma/sqrt(n))))
+    abline(h = 0)
+
+    if (alternative == "less") {
+        polygon(cbind(c(mu0 - 4 * sigma/sqrt(n), seq(from = mu0 - 4 * sigma/sqrt(n),
+            to = mu0 - qnorm(1 - alpha) * sigma/sqrt(n), length.out = 100),
+            mu0 - qnorm(1 - alpha) * sigma/sqrt(n))), c(0, dnorm(seq(from = mu0 -
+            4 * sigma/sqrt(n), to = mu0 - qnorm(1 - alpha) * sigma/sqrt(n),
+            length.out = 100), mean = mu0, sd = sigma/sqrt(n)), 0), border = "black",
+            col = "grey")
+        q <- pnorm(mu0 - qnorm(1 - alpha) * sigma/sqrt(n), mean = mu0, sd = sigma/sqrt(n)) -
+            pnorm(mu0 - 4 * sigma/sqrt(n), mean = mu0, sd = sigma/sqrt(n))
+    }
+    if (alternative == "greater") {
+        polygon(cbind(c(mu0 + qnorm(1 - alpha) * sigma/sqrt(n), seq(from = mu0 +
+            qnorm(1 - alpha) * sigma/sqrt(n), to = mu0 + 4 * sigma/sqrt(n),
+            length.out = 100), mu0 + 4 * sigma/sqrt(n))), c(0, dnorm(seq(from = mu0 +
+            qnorm(1 - alpha) * sigma/sqrt(n), to = mu0 + 4 * sigma/sqrt(n),
+            length.out = 100), mean = mu0, sd = sigma/sqrt(n)), 0), border = "black",
+            col = "grey")
+        q <- pnorm(mu0 + 4 * sigma/sqrt(n), mean = mu0, sd = sigma/sqrt(n)) -
+            pnorm(mu0 + qnorm(1 - alpha) * sigma/sqrt(n), mean = mu0, sd = sigma/sqrt(n))
+    }
+    if (alternative == "two.tailed") {
+        polygon(cbind(c(mu0 - 4 * sigma/sqrt(n), seq(from = mu0 - 4 * sigma/sqrt(n),
+            to = mu0 - qnorm(1 - alpha/2) * sigma/sqrt(n), length.out = 100),
+            mu0 - qnorm(1 - alpha/2) * sigma/sqrt(n))), c(0, dnorm(seq(from = mu0 -
+            4 * sigma/sqrt(n), to = mu0 - qnorm(1 - alpha/2) * sigma/sqrt(n),
+            length.out = 100), mean = mu0, sd = sigma/sqrt(n)), 0), border = "black",
+            col = "grey")
+        polygon(cbind(c(mu0 + qnorm(1 - alpha/2) * sigma/sqrt(n), seq(from = mu0 +
+            qnorm(1 - alpha/2) * sigma/sqrt(n), to = mu0 + 4 * sigma/sqrt(n),
+            length.out = 100), mu0 + 4 * sigma/sqrt(n))), c(0, dnorm(seq(from = mu0 +
+            qnorm(1 - alpha/2) * sigma/sqrt(n), to = mu0 + 4 * sigma/sqrt(n),
+            length.out = 100), mean = mu0, sd = sigma/sqrt(n)), 0), border = "black",
+            col = "grey")
+        q <- pnorm(mu0 - qnorm(1 - alpha/2) * sigma/sqrt(n), mean = mu0, sd = sigma/sqrt(n)) -
+            pnorm(mu0 - 4 * sigma/sqrt(n), mean = mu0, sd = sigma/sqrt(n)) +
+            pnorm(mu0 + 4 * sigma/sqrt(n), mean = mu0, sd = sigma/sqrt(n)) -
+            pnorm(mu0 + qnorm(1 - alpha/2) * sigma/sqrt(n), mean = mu0, sd = sigma/sqrt(n))
+    }
+    # print(round(q,digits=3)) # this prints area in the shaded portion(s)
+    # of the curve
+    return(length(p[p < alpha])/k)  # returns the proportion of simulations where p < alpha
+}
+eI <- typeI(mu0 = -3, sigma = 2, n = 5000, alternative = "greater", alpha = 0.05)
+```
+
+```{r 2, include=TRUE}
+alpha <- 0.05
+pvals <- c(1e-04, 0.003, 0.005, 0.01, 0.02, 0.04, 0.045, 0.11, 0.18, 0.23) #pvalues we have gotten from an arbitrary study
+sig <- pvals <= alpha/length(pvals)
+sig  # first 3 values are less than the adjusted alpha
+```
+
+```{r 2, include=TRUE}
+library(ggplot2)
+alpha <- 0.05
+psig <- NULL
+pvals <- c(1e-04, 0.003, 0.005, 0.01, 0.02, 0.04, 0.045, 0.11, 0.18, 0.27)
+for (i in 1:length(pvals)) {
+    psig[i] <- alpha * i/length(pvals)
+}
+d <- data.frame(cbind(rank = c(1:10), pvals, psig))
+p <- ggplot(data = d, aes(x = rank, y = pvals)) + geom_point() + geom_line(aes(x = rank,
+    y = psig))
+p
+```
+
+```{r 2, include=TRUE}
