@@ -111,4 +111,194 @@ p <- ggplot(data = d, aes(x = rank, y = pvals)) + geom_point() + geom_line(aes(x
 p
 ```
 
-```{r 2, include=TRUE}
+```{r 3, include=TRUE}
+typeII <- function(mu0, muA, sigma, n, alternative = "two.tailed", alpha = 0.05,
+    k = 1000) {
+    p <- rep(NA, k)  # sets up a vector of empty p values
+    for (i in 1:k) {
+        x <- rnorm(n = n, mean = muA, sd = sigma)  # draw from Ha
+        m <- mean(x)
+        s <- sd(x)
+        z <- (m - mu0)/(s/sqrt(n))  # calculates the Z statistic for the sample drawn from Ha relative to the null distribution
+        if (alternative == "less") {
+            p[i] <- pnorm(z, lower.tail = TRUE)  # calculates the associated p value
+            hyp <- "muA < mu0"
+        }
+        if (alternative == "greater") {
+            p[i] <- pnorm(z, lower.tail = FALSE)
+            hyp <- "muA > mu0"
+        }
+        if (alternative == "two.tailed") {
+            if (z > 0) {
+                p[i] <- 2 * pnorm(z, lower.tail = FALSE)
+            }
+            if (z < 0) {
+                p[i] <- 2 * pnorm(z, lower.tail = TRUE)
+            }
+            hyp <- "muA ≠ mu0"
+        }
+    }
+
+    curve(dnorm(x, mu0, sigma/sqrt(n)), mu0 - 4 * sigma/sqrt(n), mu0 + 4 * sigma/sqrt(n),
+        main = paste("Sampling Distributions Under the Null (red)\nand Alternative Hypotheses (blue)\nType II error rate from simulation = ",
+            length(p[p >= alpha])/k, sep = ""), xlab = "x", ylab = "Pr(x)",
+        col = "red", xlim = c(min(c(mu0 - 4 * sigma/sqrt(n), muA - 4 * sigma/sqrt(n))),
+            max(c(mu0 + 4 * sigma/sqrt(n), muA + 4 * sigma/sqrt(n)))), ylim = c(0,
+            max(c(dnorm(mu0, mu0, sigma/sqrt(n))), dnorm(muA, muA, sigma/sqrt(n)))))
+
+    curve(dnorm(x, muA, sigma/sqrt(n)), muA - 4 * sigma/sqrt(n), muA + 4 * sigma/sqrt(n),
+        col = "blue", add = TRUE)
+    abline(h = 0)
+
+    if (alternative == "less") {
+        polygon(cbind(c(mu0 - qnorm(1 - alpha) * sigma/sqrt(n), seq(from = mu0 -
+            qnorm(1 - alpha) * sigma/sqrt(n), to = muA + 4 * sigma/sqrt(n),
+            length.out = 100), muA + 4 * sigma/sqrt(n))), c(0, dnorm(seq(mu0 -
+            qnorm(1 - alpha) * sigma/sqrt(n), to = muA + 4 * sigma/sqrt(n),
+            length.out = 100), mean = muA, sd = sigma/sqrt(n)), 0), border = "black",
+            col = "grey")
+        abline(v = mu0 - qnorm(1 - alpha) * sigma/sqrt(n), col = "black", lty = 3,
+            lwd = 2)
+    }
+
+    if (alternative == "greater") {
+        polygon(cbind(c(muA - 4 * sigma/sqrt(n), seq(from = muA - 4 * sigma/sqrt(n),
+            to = mu0 + qnorm(1 - alpha) * sigma/sqrt(n), length.out = 100),
+            mu0 + qnorm(1 - alpha) * sigma/sqrt(n))), c(0, dnorm(seq(from = muA -
+            4 * sigma/sqrt(n), to = mu0 + qnorm(1 - alpha) * sigma/sqrt(n),
+            length.out = 100), mean = muA, sd = sigma/sqrt(n)), 0), border = "black",
+            col = "grey")
+        abline(v = mu0 + qnorm(1 - alpha) * sigma/sqrt(n), col = "black", lty = 3,
+            lwd = 2)
+    }
+
+    if (alternative == "two.tailed") {
+        abline(v = mu0 - qnorm(1 - alpha/2) * sigma/sqrt(n), col = "black",
+            lty = 3, lwd = 2)
+        abline(v = mu0 + qnorm(1 - alpha/2) * sigma/sqrt(n), col = "black",
+            lty = 3, lwd = 2)
+
+        if (z > 0) {
+            # greater
+            polygon(cbind(c(muA - 4 * sigma/sqrt(n), seq(from = muA - 4 * sigma/sqrt(n),
+                to = mu0 + qnorm(1 - alpha/2) * sigma/sqrt(n), length.out = 100),
+                mu0 + qnorm(1 - alpha/2) * sigma/sqrt(n))), c(0, dnorm(seq(from = muA -
+                4 * sigma/sqrt(n), to = mu0 + qnorm(1 - alpha/2) * sigma/sqrt(n),
+                length.out = 100), mean = muA, sd = sigma/sqrt(n)), 0), border = "black",
+                col = "grey")
+        }
+
+        # less
+        if (z < 0) {
+            polygon(cbind(c(mu0 - qnorm(1 - alpha/2) * sigma/sqrt(n), seq(from = mu0 -
+                qnorm(1 - alpha/2) * sigma/sqrt(n), to = muA + 4 * sigma/sqrt(n),
+                length.out = 100), muA + 4 * sigma/sqrt(n))), c(0, dnorm(seq(mu0 -
+                qnorm(1 - alpha/2) * sigma/sqrt(n), to = muA + 4 * sigma/sqrt(n),
+                length.out = 100), mean = muA, sd = sigma/sqrt(n)), 0), border = "black",
+                col = "grey")
+        }
+    }
+
+    return(length(p[p >= alpha])/k)
+}
+eII <- typeII(mu0 = 2, muA = 4, sigma = 3, n = 6, alternative = "greater")  # Ha > H0
+```
+
+```{r 4, include=TRUE}
+eII <- typeII(mu0 = 5, muA = 2, sigma = 4, n = 18, alternative = "less")  # Ha < H0
+```
+
+```{r 5, include=TRUE}
+eII <- typeII(mu0 = 5, muA = 7, sigma = 2, n = 15, alternative = "two.tailed")  # Ha ≠ H0
+```
+
+```{r 6, include=TRUE}
+library(ggplot2)
+library(manipulate)
+power.plot <- function(sigma, muA, mu0, n, alpha, alternative = "two.tailed") {
+    pow <- 0
+    z <- (muA - mu0)/(sigma/sqrt(n))
+    g <- ggplot(data.frame(mu = c(min(mu0 - 4 * sigma/sqrt(n), muA - 4 * sigma/sqrt(n)),
+        max(mu0 + 4 * sigma/sqrt(n), muA + 4 * sigma/sqrt(n)))), aes(x = mu)) +
+        ggtitle("Explore Power for Z Test")
+    g <- g + ylim(c(0, max(dnorm(mu0, mu0, sigma/sqrt(n)) + 0.1, dnorm(muA,
+        muA, sigma/sqrt(n)) + 0.1)))
+    g <- g + stat_function(fun = dnorm, geom = "line", args = list(mean = mu0,
+        sd = sigma/sqrt(n)), size = 1, col = "red", show.legend = TRUE)
+    g <- g + stat_function(fun = dnorm, geom = "line", args = list(mean = muA,
+        sd = sigma/sqrt(n)), size = 1, col = "blue", show.legend = TRUE)
+
+    if (alternative == "greater") {
+        if (z > 0) {
+            xcrit = mu0 + qnorm(1 - alpha) * sigma/sqrt(n)
+            g <- g + geom_segment(x = xcrit, y = 0, xend = xcrit, yend = max(dnorm(mu0,
+                mu0, sigma/sqrt(n)) + 0.025, dnorm(muA, muA, sigma/sqrt(n)) +
+                0.025), size = 0.5, linetype = 3)
+            g <- g + geom_polygon(data = data.frame(cbind(x = c(xcrit, seq(from = xcrit,
+                to = muA + 4 * sigma/sqrt(n), length.out = 100), muA + 4 * sigma/sqrt(n)),
+                y = c(0, dnorm(seq(from = xcrit, to = muA + 4 * sigma/sqrt(n),
+                  length.out = 100), mean = muA, sd = sigma/sqrt(n)), 0))),
+                aes(x = x, y = y), fill = "blue", alpha = 0.5)
+            pow <- pnorm(muA + 4 * sigma/sqrt(n), muA, sigma/sqrt(n)) - pnorm(xcrit,
+                muA, sigma/sqrt(n))
+        }
+    }
+    if (alternative == "less") {
+        if (z < 0) {
+            xcrit = mu0 - qnorm(1 - alpha) * sigma/sqrt(n)
+            g <- g + geom_segment(x = xcrit, y = 0, xend = xcrit, yend = max(dnorm(mu0,
+                mu0, sigma/sqrt(n)) + 0.025, dnorm(muA, muA, sigma/sqrt(n)) +
+                0.025), size = 0.5, linetype = 3)
+            g <- g + geom_polygon(data = data.frame(cbind(x = c(muA - 4 * sigma/sqrt(n),
+                seq(from = muA - 4 * sigma/sqrt(n), to = xcrit, length.out = 100),
+                xcrit), y = c(0, dnorm(seq(from = muA - 4 * sigma/sqrt(n), to = xcrit,
+                length.out = 100), mean = muA, sd = sigma/sqrt(n)), 0))), aes(x = x,
+                y = y), fill = "blue", alpha = 0.5)
+            pow <- pnorm(xcrit, muA, sigma/sqrt(n)) - pnorm(muA - 4 * sigma/sqrt(n),
+                muA, sigma/sqrt(n))
+        }
+    }
+    if (alternative == "two.tailed") {
+        if (z > 0) {
+            xcrit = mu0 + qnorm(1 - alpha/2) * sigma/sqrt(n)
+            g <- g + geom_segment(x = xcrit, y = 0, xend = xcrit, yend = max(dnorm(mu0,
+                mu0, sigma/sqrt(n)) + 0.025, dnorm(muA, muA, sigma/sqrt(n)) +
+                0.025), size = 0.5, linetype = 3)
+            g <- g + geom_polygon(data = data.frame(cbind(x = c(xcrit, seq(from = xcrit,
+                to = muA + 4 * sigma/sqrt(n), length.out = 100), muA + 4 * sigma/sqrt(n)),
+                y = c(0, dnorm(seq(from = xcrit, to = muA + 4 * sigma/sqrt(n),
+                  length.out = 100), mean = muA, sd = sigma/sqrt(n)), 0))),
+                aes(x = x, y = y), fill = "blue", alpha = 0.5)
+            pow <- pnorm(muA + 4 * sigma/sqrt(n), muA, sigma/sqrt(n)) - pnorm(xcrit,
+                muA, sigma/sqrt(n))
+        }
+        if (z < 0) {
+            xcrit = mu0 - qnorm(1 - alpha/2) * sigma/sqrt(n)
+            g <- g + geom_segment(x = xcrit, y = 0, xend = xcrit, yend = max(dnorm(mu0,
+                mu0, sigma/sqrt(n)) + 0.025, dnorm(muA, muA, sigma/sqrt(n)) +
+                0.025), size = 0.5, linetype = 3)
+            g <- g + geom_polygon(data = data.frame(cbind(x = c(muA - 4 * sigma/sqrt(n),
+                seq(from = muA - 4 * sigma/sqrt(n), to = xcrit, length.out = 100),
+                xcrit), y = c(0, dnorm(seq(from = muA - 4 * sigma/sqrt(n), to = xcrit,
+                length.out = 100), mean = muA, sd = sigma/sqrt(n)), 0))), aes(x = x,
+                y = y), fill = "blue", alpha = 0.5)
+            pow <- pnorm(xcrit, muA, sigma/sqrt(n)) - pnorm(muA - 4 * sigma/sqrt(n),
+                muA, sigma/sqrt(n))
+        }
+    }
+    g <- g + annotate("text", x = max(mu0, muA) + 2 * sigma/sqrt(n), y = max(dnorm(mu0,
+        mu0, sigma/sqrt(n)) + 0.075, dnorm(muA, muA, sigma/sqrt(n)) + 0.075),
+        label = paste("Effect Size = ", round((muA - mu0)/sigma, digits = 3),
+            "\nPower = ", round(pow, digits = 3), sep = ""))
+    g <- g + annotate("text", x = min(mu0, muA) - 2 * sigma/sqrt(n), y = max(dnorm(mu0,
+        mu0, sigma/sqrt(n)) + 0.075, dnorm(muA, muA, sigma/sqrt(n)) + 0.075),
+        label = "Red = mu0\nBlue = muA")
+    g
+}
+manipulate(plot(1:5, cex = size), size = slider(0.5, 10, step = 0.5))  #run this to get it going
+manipulate(power.plot(sigma, muA, mu0, n, alpha, alternative), sigma = slider(1,
+    10, step = 1, initial = 4), muA = slider(-10, 10, step = 1, initial = 2),
+    mu0 = slider(-10, 10, step = 1, initial = 0), n = slider(1, 50, step = 1,
+        initial = 16), alpha = slider(0.01, 0.1, step = 0.01, initial = 0.05),
+    alternative = picker("two.tailed", "greater", "less"))
+```
